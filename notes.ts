@@ -29,14 +29,14 @@ export function addNote(title: string, body: string): void {
     const lowercase=title.toLowerCase();
     const duplicateNote=notes.find((note)=>note.title.toLowerCase()===lowercase);
     if (duplicateNote) {
-        console.log("Note already exists!");
+        console.log(chalk.red("Note already exists!"));
         return;
     }
     const updatedTitle=capitalizeFirst(title.trim());
     const updatedBody=capitalizeFirst(body.trim());
     notes.push({ title: updatedTitle, body: updatedBody });
     saveNotes(notes);
-    console.log("Note added");
+    console.log(chalk.green("Note added"));
 }
 
 export function listNotes(): void {
