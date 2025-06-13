@@ -1,4 +1,4 @@
-import yargs, { demandOption, describe } from 'yargs';
+import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import { addNote, listNotes, readByTitle, removeFromList } from './notes';
 
