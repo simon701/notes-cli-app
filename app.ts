@@ -1,66 +1,66 @@
-import yargs from 'yargs';
-import { hideBin } from 'yargs/helpers';
-import { addNote, listNotes, readByTitle, removeFromList } from './notes';
+import yargs from "yargs";
+import { hideBin } from "yargs/helpers";
+import { addNote, listNotes, readByTitle, removeFromList } from "./notes";
 
 yargs(hideBin(process.argv))
   .command({
-    command: 'add',
-    describe: 'Add a new note',
+    command: "add",
+    describe: "Add a new note",
     builder: {
-        title: {
-            describe: 'Note title',
-            demandOption: true,
-            type: 'string',
-        },
-        body: {
-            describe: 'Note body',
-            demandOption: true,
-            type: 'string',
-        }
+      title: {
+        describe: "Note title",
+        demandOption: true,
+        type: "string",
+      },
+      body: {
+        describe: "Note body",
+        demandOption: true,
+        type: "string",
+      },
     },
     handler(argv) {
-        if (typeof argv.title === 'string' && typeof argv.body === 'string') {
-            addNote(argv.title, argv.body);
-        }
-    }
+      if (typeof argv.title === "string" && typeof argv.body === "string") {
+        addNote(argv.title, argv.body);
+      }
+    },
   })
   .command({
-    command: 'list',
-    describe: 'List all notes',
+    command: "list",
+    describe: "List all notes",
     handler() {
-        listNotes();
-    }
+      listNotes();
+    },
   })
   .command({
-    command: 'read',
-    describe: 'Read a note by Title',
+    command: "read",
+    describe: "Read a note by Title",
     builder: {
-        title: {
-            describe: 'Note title',
-            demandOption: true,
-            type: 'string',
-        }
+      title: {
+        describe: "Note title",
+        demandOption: true,
+        type: "string",
+      },
     },
     handler(argv) {
-        if (typeof argv.title==='string') {
-            readByTitle(argv.title);
-        }
-    }
+      if (typeof argv.title === "string") {
+        readByTitle(argv.title);
+      }
+    },
   })
   .command({
-    command: 'remove',
-    describe: 'Remove note from list',
+    command: "remove",
+    describe: "Remove note from list",
     builder: {
-        title: {
-            describe: 'Note title',
-            demandOption: true,
-            type: 'string',
-        }
+      title: {
+        describe: "Note title",
+        demandOption: true,
+        type: "string",
+      },
     },
     handler(argv) {
-        if (typeof argv.title==='string') {
-            removeFromList(argv.title);
-        }
-    }
+      if (typeof argv.title === "string") {
+        removeFromList(argv.title);
+      }
+    },
   })
   .parse();
