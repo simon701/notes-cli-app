@@ -43,40 +43,32 @@ export function addNote(title: string, body: string): void {
   console.log(chalk.green("Note added"));
 }
 
-export function listNotes(): void {
-  const notes = loadNotes();
-  if (notes.length === 0) {
-    console.log(chalk.red("No notes found."));
-    return;
-  }
-  console.log(chalk.green("Your notes: "));
-  notes.forEach((note, index) => {
-    console.log(chalk.yellow(`${index + 1}. ${note.title}`));
-    console.log(chalk.white(`   ${note.body}`));
-  });
+export function listNotes(): Note[] {
+  return loadNotes();
 }
 
-export function readByTitle(title: string): void {
+export function readByTitle(title: string): Note | undefined {
   const notes = loadNotes();
   const lowercase = title.toLowerCase();
-  const note = notes.find((note) => note.title.toLowerCase() === lowercase);
-  if (!note) {
+  return notes.find((note) => note.title.toLowerCase() === lowercase);
+  /*if (!note) {
     console.log(chalk.red("Note not found"));
     return;
   }
   console.log(chalk.green("Note(s) found: "));
   console.log(chalk.yellow(note.title));
-  console.log(chalk.white(`   ${note.body}`));
+  console.log(chalk.white(`   ${note.body}`));*/
 }
 
-export function removeFromList(title: string): void {
+export function removeFromList(title: string): boolean {
   const notes = loadNotes();
   const lowercase = title.toLowerCase();
   const note = notes.filter((note) => note.title.toLowerCase() !== lowercase);
   if (note.length === notes.length) {
     console.log(chalk.red("Note doesn't exist."));
-    return;
+    return false;
   }
   saveNotes(note);
   console.log(chalk.green("Note removed."));
+  return true;
 }
