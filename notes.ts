@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import chalk from "chalk";
+const notesFile = "notes.json";
 
 const notesFilePath = path.join(__dirname, "data", "notes.json");
 interface Note {
@@ -70,5 +71,24 @@ export function removeFromList(title: string): boolean {
   }
   saveNotes(note);
   console.log(chalk.green("Note removed."));
+  return true;
+}
+
+export function updateNote(
+  title: string,
+  newTitle?: string,
+  newBody?: string
+): boolean {
+  const notes = loadNotes();
+
+  const noteIndex = notes.findIndex(
+    (note) => note.title.toLowerCase() === title.toLowerCase()
+  );
+  if (noteIndex === -1) return false;
+
+  if (newTitle) notes[noteIndex].title = capitalizeFirst(newTitle.trim());
+  if (newBody) notes[noteIndex].body = capitalizeFirst(newBody.trim());
+
+  saveNotes(notes);
   return true;
 }
