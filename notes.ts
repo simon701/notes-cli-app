@@ -1,7 +1,6 @@
 import fs from "fs";
 import path from "path";
 import chalk from "chalk";
-const notesFile = "notes.json";
 
 const notesFilePath = path.join(__dirname, "data", "notes.json");
 interface Note {
@@ -52,13 +51,6 @@ export function readByTitle(title: string): Note | undefined {
   const notes = loadNotes();
   const lowercase = title.toLowerCase();
   return notes.find((note) => note.title.toLowerCase() === lowercase);
-  /*if (!note) {
-    console.log(chalk.red("Note not found"));
-    return;
-  }
-  console.log(chalk.green("Note(s) found: "));
-  console.log(chalk.yellow(note.title));
-  console.log(chalk.white(`   ${note.body}`));*/
 }
 
 export function removeFromList(title: string): boolean {
@@ -80,15 +72,12 @@ export function updateNote(
   newBody?: string
 ): boolean {
   const notes = loadNotes();
-
   const noteIndex = notes.findIndex(
     (note) => note.title.toLowerCase() === title.toLowerCase()
   );
   if (noteIndex === -1) return false;
-
   if (newTitle) notes[noteIndex].title = capitalizeFirst(newTitle.trim());
   if (newBody) notes[noteIndex].body = capitalizeFirst(newBody.trim());
-
   saveNotes(notes);
   return true;
 }
