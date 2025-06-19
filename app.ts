@@ -93,7 +93,7 @@ const server = http.createServer(async (req, res) => {
 
           if (user) {
             const SECRET = process.env.JWT_SECRET;
-            const token = jwt.sign({ username }, SECRET!, { expiresIn: "1h" });
+            const token = jwt.sign({ username }, SECRET!, { expiresIn: "15m" });
             res.writeHead(200, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ success: true, token }));
           } else {
