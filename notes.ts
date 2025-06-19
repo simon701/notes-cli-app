@@ -6,6 +6,7 @@ const notesFilePath = path.join(__dirname, "data", "notes.json");
 interface Note {
   title: string;
   body: string;
+  color?: string;
 }
 
 function loadNotes(): Note[] {
@@ -26,22 +27,14 @@ function capitalizeFirst(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-export function addNote(title: string, body: string): void {
+export const addNote = (title: string, body: string, color?: string): void => {
   const notes = loadNotes();
-  const lowercase = title.toLowerCase();
-  const duplicateNote = notes.find(
-    (note) => note.title.toLowerCase() === lowercase
-  );
-  if (duplicateNote) {
-    console.log(chalk.red("Note already exists!"));
-    return;
+  const duplicate = notes.find((note) => note.title === title);
+  if (!duplicate) {
+    notes.push({ title, body, color });
+    saveNotes(notes);
   }
-  const updatedTitle = capitalizeFirst(title.trim());
-  const updatedBody = capitalizeFirst(body.trim());
-  notes.push({ title: updatedTitle, body: updatedBody });
-  saveNotes(notes);
-  console.log(chalk.green("Note added"));
-}
+};
 
 export function listNotes(): Note[] {
   return loadNotes();
