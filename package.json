@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "start": "ts-node app.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -13,8 +14,15 @@
   "dependencies": {
     "@types/node": "^24.0.0",
     "@types/yargs": "^17.0.33",
+    "bcrypt": "^6.0.0",
     "chalk": "^5.4.1",
-    "typescript": "^5.8.3",
+    "dotenv": "^16.5.0",
+    "jsonwebtoken": "^9.0.2",
     "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
   }
 }

@@ -1,6 +1,22 @@
 [
   {
-    "title": "Goals",
-    "body": "Finish the TypeScript project"
+    "title": "Simon",
+    "body": "Maarawi",
+    "color": "bg-orange-200"
+  },
+  {
+    "title": "Groceries",
+    "body": "Food",
+    "color": "bg-orange-200"
+  },
+  {
+    "title": "Hello",
+    "body": "K",
+    "color": "bg-purple-200"
+  },
+  {
+    "title": "SM",
+    "body": "SM",
+    "color": "bg-yellow-200"
   }
 ]
