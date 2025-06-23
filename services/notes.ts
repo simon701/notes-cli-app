@@ -21,12 +21,15 @@ export const addNote = async (
     "SELECT * FROM notes WHERE LOWER(title)=LOWER($1) AND user_id=$2",
     [title, userId]
   );
-  if (existing.rows.length === 0) {
-    await pool.query(
-      "INSERT INTO notes (title, body, color, user_id) VALUES ($1, $2, $3, $4)",
-      [capitalizeFirst(title.trim()), body, color, userId]
-    );
+
+  if (existing.rows.length > 0) {
+    throw new Error("Note with this title already exists.");
   }
+
+  await pool.query(
+    "INSERT INTO notes (title, body, color, user_id) VALUES ($1, $2, $3, $4)",
+    [capitalizeFirst(title.trim()), body, color, userId]
+  );
 };
 
 export const listNotes = async (userId: number): Promise<Note[]> => {
@@ -53,13 +56,16 @@ export const updateNote = async (
   userId: number,
   newTitle?: string,
   newBody?: string
-): Promise<boolean> => {
+): Promise<void> => {
   const existing = await pool.query(
     "SELECT * FROM notes WHERE LOWER(title)=LOWER($1) AND user_id=$2",
     [title, userId]
   );
-  if (existing.rows.length === 0) throw new Error("Note not found.");
-  ;
+
+  if (existing.rows.length === 0) {
+    throw new Error("Note not found.");
+  }
+
   const note = existing.rows[0];
 
   if (newTitle) {
@@ -67,27 +73,32 @@ export const updateNote = async (
       "SELECT * FROM notes WHERE LOWER(title)=LOWER($1) AND user_id=$2 AND id<>$3",
       [newTitle, userId, note.id]
     );
-    if (duplicate.rows.length > 0) throw new Error("Note not found.");
+
+    if (duplicate.rows.length > 0) {
+      throw new Error("Another note with this title already exists.");
+    }
   }
 
-  const updateTitle = newTitle ? capitalizeFirst(newTitle.trim()) : note.title;
-  const updateBody = newBody ? capitalizeFirst(newBody.trim()) : note.body;
+  const updatedTitle = newTitle ? capitalizeFirst(newTitle.trim()) : note.title;
+  const updatedBody = newBody ? capitalizeFirst(newBody.trim()) : note.body;
 
   await pool.query("UPDATE notes SET title=$1, body=$2 WHERE id=$3", [
-    updateTitle,
-    updateBody,
+    updatedTitle,
+    updatedBody,
     note.id,
   ]);
-  return true;
 };
 
 export const removeFromList = async (
   title: string,
   userId: number
-): Promise<boolean> => {
+): Promise<void> => {
   const res = await pool.query(
     "DELETE FROM notes WHERE LOWER(title)=LOWER($1) AND user_id=$2 RETURNING *",
     [title, userId]
   );
-  return (res.rowCount ?? 0) > 0;
+
+  if (res.rowCount === 0) {
+    throw new Error("Note not found.");
+  }
 };

@@ -13,7 +13,14 @@ import dotenv from "dotenv";
 import { verifyToken } from "../middlewares/authMiddleware";
 import bcrypt from "bcrypt";
 import { findUserByUsername } from "../services/user";
+
 dotenv.config();
+
+declare module "http" {
+  interface IncomingMessage {
+    user?: { id: number; username: string };
+  }
+}
 
 const server = http.createServer(async (req, res) => {
   const url = req.url || "";
@@ -32,33 +39,31 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  try {
+    if (url !== "/login") {
+      await verifyToken(req); // middleware attaches req.user or throws
+    }
+  } catch (err) {
+    res.writeHead(401, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ message: (err as Error).message }));
+    return;
+  }
+
   const notesRoute = url.startsWith("/notes");
 
   switch (method) {
     case "GET":
       if (notesRoute) {
-        const username = verifyToken(req);
-        if (!username) {
-          res.writeHead(401, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ message: "Unauthorized" }));
-          return;
-        }
-
-        const user = await findUserByUsername(username);
-        if (!user) {
-          res.writeHead(403, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ message: "User not found" }));
-          return;
-        }
-
         const parts = url.split("/");
+        const userId = req.user!.id;
+
         if (parts.length === 2) {
-          const notes = await listNotes(user.id);
+          const notes = await listNotes(userId);
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify(notes));
         } else if (parts.length === 3) {
           const title = decodeURIComponent(parts[2]);
-          const note = await readByTitle(title, user.id);
+          const note = await readByTitle(title, userId);
           if (note) {
             res.writeHead(200, { "Content-Type": "application/json" });
             res.end(JSON.stringify(note));
@@ -87,53 +92,42 @@ const server = http.createServer(async (req, res) => {
 
             if (isHashed) {
               const match = await bcrypt.compare(password, user.password);
-              if (!match) {
-                res.writeHead(401, { "Content-Type": "application/json" });
-                res.end(
-                  JSON.stringify({
-                    success: false,
-                    message: "Invalid credentials",
-                  })
-                );
-                return;
-              }
+              if (!match) throw new Error("Invalid credentials");
             } else {
-              if (user.password !== password) {
-                res.writeHead(401, { "Content-Type": "application/json" });
-                res.end(
-                  JSON.stringify({
-                    success: false,
-                    message: "Invalid credentials",
-                  })
-                );
-                return;
-              }
+              if (user.password !== password)
+                throw new Error("Invalid credentials");
+
               const hashed = await bcrypt.hash(password, 10);
               await pool.query(
                 "UPDATE users SET password = $1 WHERE username = $2",
                 [hashed, username]
               );
             }
-            const SECRET = process.env.JWT_SECRET;
-            const token = jwt.sign({ username }, SECRET!, { expiresIn: "15m" });
+
+            const SECRET = process.env.JWT_SECRET!;
+            const token = jwt.sign({ username }, SECRET, { expiresIn: "15m" });
+
             res.writeHead(200, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ success: true, token }));
           } else {
-            res.writeHead(401, { "Content-Type": "application/json" });
-            res.end(
-              JSON.stringify({ success: false, message: "Invalid credentials" })
-            );
+            throw new Error("Invalid credentials");
           }
-        } catch {
-          res.writeHead(400, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ success: false, message: "Bad request" }));
+        } catch (err) {
+          res.writeHead(401, { "Content-Type": "application/json" });
+          res.end(
+            JSON.stringify({
+              success: false,
+              message: (err as Error).message || "Bad request",
+            })
+          );
         }
         return;
       }
 
       if (url === "/logout") {
-        const username = verifyToken(req);
-        console.log(`${username || "Unknown user"} requested logout.`);
+        console.log(
+          `${req.user?.username || "Unknown user"} requested logout.`
+        );
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(
           JSON.stringify({
@@ -145,26 +139,12 @@ const server = http.createServer(async (req, res) => {
       }
 
       if (notesRoute) {
-        const username = verifyToken(req);
-        if (!username) {
-          res.writeHead(401, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ message: "Unauthorized" }));
-          return;
-        }
-
-        const user = await findUserByUsername(username);
-        if (!user) {
-          res.writeHead(403, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ message: "User not found" }));
-          return;
-        }
-
         try {
           const { title, body, color } = await getRequest(req);
-          await addNote(title, body, color, user.id);
+          await addNote(title, body, req.user!.id, color);
           res.writeHead(201, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ message: "Note added" }));
-        } catch {
+        } catch (err) {
           res.writeHead(400, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ message: "Invalid JSON body" }));
         }
@@ -174,41 +154,17 @@ const server = http.createServer(async (req, res) => {
 
     case "PATCH":
       if (notesRoute) {
-        const username = verifyToken(req);
-        if (!username) {
-          res.writeHead(401, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ message: "Unauthorized" }));
-          return;
-        }
-
-        const user = await findUserByUsername(username);
-        if (!user) {
-          res.writeHead(403, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ message: "User not found" }));
-          return;
-        }
-
         const parts = url.split("/");
         if (parts.length === 3) {
           const oldTitle = decodeURIComponent(parts[2]);
           try {
             const { title: newTitle, body: newBody } = await getRequest(req);
-            const updated = await updateNote(
-              oldTitle,
-              user.id,
-              newTitle,
-              newBody
-            );
-            if (updated) {
-              res.writeHead(200, { "Content-Type": "application/json" });
-              res.end(JSON.stringify({ message: "Note updated successfully" }));
-            } else {
-              res.writeHead(404, { "Content-Type": "application/json" });
-              res.end(JSON.stringify({ message: "Note not found" }));
-            }
-          } catch {
+            await updateNote(oldTitle, req.user!.id, newTitle, newBody);
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ message: "Note updated successfully" }));
+          } catch (err) {
             res.writeHead(400, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ message: "Invalid request body" }));
+            res.end(JSON.stringify({ message: (err as Error).message }));
           }
           return;
         }
@@ -217,30 +173,16 @@ const server = http.createServer(async (req, res) => {
 
     case "DELETE":
       if (notesRoute) {
-        const username = verifyToken(req);
-        if (!username) {
-          res.writeHead(401, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ message: "Unauthorized" }));
-          return;
-        }
-
-        const user = await findUserByUsername(username);
-        if (!user) {
-          res.writeHead(403, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ message: "User not found" }));
-          return;
-        }
-
         const parts = url.split("/");
         if (parts.length === 3) {
           const title = decodeURIComponent(parts[2]);
-          const success = await removeFromList(title, user.id);
-          if (success) {
+          try {
+            await removeFromList(title, req.user!.id);
             res.writeHead(200, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ message: "Note deleted" }));
-          } else {
+          } catch (err) {
             res.writeHead(404, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ message: "Note not found" }));
+            res.end(JSON.stringify({ message: (err as Error).message }));
           }
           return;
         }
