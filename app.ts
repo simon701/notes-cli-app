@@ -7,19 +7,12 @@ import {
   updateNote,
 } from "./notes";
 import { getRequest } from "./utils";
-import path from "path";
-import fs from "fs";
+import pool from "./db";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import type { JwtPayload } from "jsonwebtoken";
-
+import bcrypt from "bcrypt";
 dotenv.config();
-interface User {
-  username: string;
-  password: string;
-}
-
-const usersPath = path.join(__dirname, "users.json");
 
 function verifyToken(req: http.IncomingMessage): string | null {
   const authHeader = req.headers["authorization"];
@@ -37,6 +30,13 @@ function verifyToken(req: http.IncomingMessage): string | null {
     }
     return null;
   }
+}
+
+async function findUserByUsername(username: string) {
+  const res = await pool.query("SELECT * FROM users WHERE username = $1", [
+    username,
+  ]);
+  return res.rows[0] || null;
 }
 
 const server = http.createServer(async (req, res) => {
@@ -68,14 +68,21 @@ const server = http.createServer(async (req, res) => {
           return;
         }
 
+        const user = await findUserByUsername(username);
+        if (!user) {
+          res.writeHead(403, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ message: "User not found" }));
+          return;
+        }
+
         const parts = url.split("/");
         if (parts.length === 2) {
-          const notes = listNotes();
+          const notes = await listNotes(user.id);
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify(notes));
         } else if (parts.length === 3) {
           const title = decodeURIComponent(parts[2]);
-          const note = readByTitle(title);
+          const note = await readByTitle(title, user.id);
           if (note) {
             res.writeHead(200, { "Content-Type": "application/json" });
             res.end(JSON.stringify(note));
@@ -95,14 +102,42 @@ const server = http.createServer(async (req, res) => {
       if (url === "/login") {
         try {
           const { username, password } = await getRequest(req);
-          const users = JSON.parse(
-            fs.readFileSync(usersPath, "utf-8")
-          ) as User[];
-          const user = users.find(
-            (u) => u.username === username && u.password === password
-          );
+          const user = await findUserByUsername(username);
 
           if (user) {
+            const isHashed =
+              user.password.startsWith("$2b$") ||
+              user.password.startsWith("$2a$");
+
+            if (isHashed) {
+              const match = await bcrypt.compare(password, user.password);
+              if (!match) {
+                res.writeHead(401, { "Content-Type": "application/json" });
+                res.end(
+                  JSON.stringify({
+                    success: false,
+                    message: "Invalid credentials",
+                  })
+                );
+                return;
+              }
+            } else {
+              if (user.password !== password) {
+                res.writeHead(401, { "Content-Type": "application/json" });
+                res.end(
+                  JSON.stringify({
+                    success: false,
+                    message: "Invalid credentials",
+                  })
+                );
+                return;
+              }
+              const hashed = await bcrypt.hash(password, 10);
+              await pool.query(
+                "UPDATE users SET password = $1 WHERE username = $2",
+                [hashed, username]
+              );
+            }
             const SECRET = process.env.JWT_SECRET;
             const token = jwt.sign({ username }, SECRET!, { expiresIn: "15m" });
             res.writeHead(200, { "Content-Type": "application/json" });
@@ -141,9 +176,16 @@ const server = http.createServer(async (req, res) => {
           return;
         }
 
+        const user = await findUserByUsername(username);
+        if (!user) {
+          res.writeHead(403, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ message: "User not found" }));
+          return;
+        }
+
         try {
           const { title, body, color } = await getRequest(req);
-          addNote(title, body, color);
+          await addNote(title, body, color, user.id);
           res.writeHead(201, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ message: "Note added" }));
         } catch {
@@ -163,12 +205,24 @@ const server = http.createServer(async (req, res) => {
           return;
         }
 
+        const user = await findUserByUsername(username);
+        if (!user) {
+          res.writeHead(403, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ message: "User not found" }));
+          return;
+        }
+
         const parts = url.split("/");
         if (parts.length === 3) {
           const oldTitle = decodeURIComponent(parts[2]);
           try {
             const { title: newTitle, body: newBody } = await getRequest(req);
-            const updated = updateNote(oldTitle, newTitle, newBody);
+            const updated = await updateNote(
+              oldTitle,
+              newTitle,
+              newBody,
+              user.id
+            );
             if (updated) {
               res.writeHead(200, { "Content-Type": "application/json" });
               res.end(JSON.stringify({ message: "Note updated successfully" }));
@@ -194,10 +248,17 @@ const server = http.createServer(async (req, res) => {
           return;
         }
 
+        const user = await findUserByUsername(username);
+        if (!user) {
+          res.writeHead(403, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ message: "User not found" }));
+          return;
+        }
+
         const parts = url.split("/");
         if (parts.length === 3) {
           const title = decodeURIComponent(parts[2]);
-          const success = removeFromList(title);
+          const success = await removeFromList(title, user.id);
           if (success) {
             res.writeHead(200, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ message: "Note deleted" }));

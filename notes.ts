@@ -1,25 +1,9 @@
-import fs from "fs";
-import path from "path";
-import chalk from "chalk";
+import pool from "./db";
 
-const notesFilePath = path.join(__dirname, "data", "notes.json");
-interface Note {
+export interface Note {
   title: string;
   body: string;
   color?: string;
-}
-
-function loadNotes(): Note[] {
-  try {
-    const fileRead = fs.readFileSync(notesFilePath, "utf-8");
-    return JSON.parse(fileRead);
-  } catch (error) {
-    return [];
-  }
-}
-
-function saveNotes(notes: Note[]): void {
-  fs.writeFileSync(notesFilePath, JSON.stringify(notes, null, 2));
 }
 
 function capitalizeFirst(str: string): string {
@@ -27,50 +11,82 @@ function capitalizeFirst(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-export const addNote = (title: string, body: string, color?: string): void => {
-  const notes = loadNotes();
-  const duplicate = notes.find((note) => note.title === title);
-  if (!duplicate) {
-    notes.push({ title, body, color });
-    saveNotes(notes);
+export const addNote = async (
+  title: string,
+  body: string,
+  color?: string,
+  userId: number = 1
+): Promise<void> => {
+  const existing = await pool.query(
+    "SELECT * FROM notes WHERE LOWER(title)=LOWER($1) AND user_id=$2",
+    [title, userId]
+  );
+  if (existing.rows.length === 0) {
+    await pool.query(
+      "INSERT INTO notes (title, body, color, user_id) VALUES ($1, $2, $3, $4)",
+      [capitalizeFirst(title.trim()), body, color, userId]
+    );
   }
 };
 
-export function listNotes(): Note[] {
-  return loadNotes();
-}
+export const listNotes = async (userId: number = 1): Promise<Note[]> => {
+  const res = await pool.query(
+    "SELECT title, body, color FROM notes WHERE user_id=$1",
+    [userId]
+  );
+  return res.rows;
+};
 
-export function readByTitle(title: string): Note | undefined {
-  const notes = loadNotes();
-  const lowercase = title.toLowerCase();
-  return notes.find((note) => note.title.toLowerCase() === lowercase);
-}
+export const readByTitle = async (
+  title: string,
+  userId: number = 1
+): Promise<Note | undefined> => {
+  const res = await pool.query(
+    "SELECT title, body, color FROM notes WHERE LOWER(title)=LOWER($1) AND user_id=$2",
+    [title, userId]
+  );
+  return res.rows[0];
+};
 
-export function removeFromList(title: string): boolean {
-  const notes = loadNotes();
-  const lowercase = title.toLowerCase();
-  const note = notes.filter((note) => note.title.toLowerCase() !== lowercase);
-  if (note.length === notes.length) {
-    console.log(chalk.red("Note doesn't exist."));
-    return false;
-  }
-  saveNotes(note);
-  console.log(chalk.green("Note removed."));
-  return true;
-}
-
-export function updateNote(
+export const updateNote = async (
   title: string,
   newTitle?: string,
-  newBody?: string
-): boolean {
-  const notes = loadNotes();
-  const noteIndex = notes.findIndex(
-    (note) => note.title.toLowerCase() === title.toLowerCase()
+  newBody?: string,
+  userId: number = 1
+): Promise<boolean> => {
+  const existing = await pool.query(
+    "SELECT * FROM notes WHERE LOWER(title)=LOWER($1) AND user_id=$2",
+    [title, userId]
   );
-  if (noteIndex === -1) return false;
-  if (newTitle) notes[noteIndex].title = capitalizeFirst(newTitle.trim());
-  if (newBody) notes[noteIndex].body = capitalizeFirst(newBody.trim());
-  saveNotes(notes);
+  if (existing.rows.length === 0) return false;
+  const note = existing.rows[0];
+
+  if (newTitle) {
+    const duplicate = await pool.query(
+      "SELECT * FROM notes WHERE LOWER(title)=LOWER($1) AND user_id=$2 AND id<>$3",
+      [newTitle, userId, note.id]
+    );
+    if (duplicate.rows.length > 0) return false;
+  }
+
+  const updateTitle = newTitle ? capitalizeFirst(newTitle.trim()) : note.title;
+  const updateBody = newBody ? capitalizeFirst(newBody.trim()) : note.body;
+
+  await pool.query("UPDATE notes SET title=$1, body=$2 WHERE id=$3", [
+    updateTitle,
+    updateBody,
+    note.id,
+  ]);
   return true;
-}
+};
+
+export const removeFromList = async (
+  title: string,
+  userId: number = 1
+): Promise<boolean> => {
+  const res = await pool.query(
+    "DELETE FROM notes WHERE LOWER(title)=LOWER($1) AND user_id=$2 RETURNING *",
+    [title, userId]
+  );
+  return (res.rowCount ?? 0) > 0;
+};
