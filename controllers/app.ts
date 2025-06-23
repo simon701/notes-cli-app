@@ -10,34 +10,10 @@ import { getRequest } from "../utils/utils";
 import pool from "../config/db";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
-import type { JwtPayload } from "jsonwebtoken";
+import { verifyToken } from "../middlewares/authMiddleware";
 import bcrypt from "bcrypt";
+import { findUserByUsername } from "../services/user";
 dotenv.config();
-
-function verifyToken(req: http.IncomingMessage): string | null {
-  const authHeader = req.headers["authorization"];
-  if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
-
-  const token = authHeader.split(" ")[1];
-  const SECRET = process.env.JWT_SECRET;
-
-  try {
-    const decoded = jwt.verify(token, SECRET!) as JwtPayload;
-    return typeof decoded.username === "string" ? decoded.username : null;
-  } catch (err) {
-    if (err instanceof Error) {
-      console.warn("JWT verification failed:", err.message);
-    }
-    return null;
-  }
-}
-
-async function findUserByUsername(username: string) {
-  const res = await pool.query("SELECT * FROM users WHERE username = $1", [
-    username,
-  ]);
-  return res.rows[0] || null;
-}
 
 const server = http.createServer(async (req, res) => {
   const url = req.url || "";
@@ -219,9 +195,9 @@ const server = http.createServer(async (req, res) => {
             const { title: newTitle, body: newBody } = await getRequest(req);
             const updated = await updateNote(
               oldTitle,
+              user.id,
               newTitle,
-              newBody,
-              user.id
+              newBody
             );
             if (updated) {
               res.writeHead(200, { "Content-Type": "application/json" });

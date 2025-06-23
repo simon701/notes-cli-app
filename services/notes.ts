@@ -14,8 +14,8 @@ function capitalizeFirst(str: string): string {
 export const addNote = async (
   title: string,
   body: string,
-  color?: string,
-  userId: number = 1
+  userId: number,
+  color?: string
 ): Promise<void> => {
   const existing = await pool.query(
     "SELECT * FROM notes WHERE LOWER(title)=LOWER($1) AND user_id=$2",
@@ -29,7 +29,7 @@ export const addNote = async (
   }
 };
 
-export const listNotes = async (userId: number = 1): Promise<Note[]> => {
+export const listNotes = async (userId: number): Promise<Note[]> => {
   const res = await pool.query(
     "SELECT title, body, color FROM notes WHERE user_id=$1",
     [userId]
@@ -39,7 +39,7 @@ export const listNotes = async (userId: number = 1): Promise<Note[]> => {
 
 export const readByTitle = async (
   title: string,
-  userId: number = 1
+  userId: number
 ): Promise<Note | undefined> => {
   const res = await pool.query(
     "SELECT title, body, color FROM notes WHERE LOWER(title)=LOWER($1) AND user_id=$2",
@@ -50,15 +50,16 @@ export const readByTitle = async (
 
 export const updateNote = async (
   title: string,
+  userId: number,
   newTitle?: string,
-  newBody?: string,
-  userId: number = 1
+  newBody?: string
 ): Promise<boolean> => {
   const existing = await pool.query(
     "SELECT * FROM notes WHERE LOWER(title)=LOWER($1) AND user_id=$2",
     [title, userId]
   );
-  if (existing.rows.length === 0) return false;
+  if (existing.rows.length === 0) throw new Error("Note not found.");
+  ;
   const note = existing.rows[0];
 
   if (newTitle) {
@@ -66,7 +67,7 @@ export const updateNote = async (
       "SELECT * FROM notes WHERE LOWER(title)=LOWER($1) AND user_id=$2 AND id<>$3",
       [newTitle, userId, note.id]
     );
-    if (duplicate.rows.length > 0) return false;
+    if (duplicate.rows.length > 0) throw new Error("Note not found.");
   }
 
   const updateTitle = newTitle ? capitalizeFirst(newTitle.trim()) : note.title;
@@ -82,7 +83,7 @@ export const updateNote = async (
 
 export const removeFromList = async (
   title: string,
-  userId: number = 1
+  userId: number
 ): Promise<boolean> => {
   const res = await pool.query(
     "DELETE FROM notes WHERE LOWER(title)=LOWER($1) AND user_id=$2 RETURNING *",
