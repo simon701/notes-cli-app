@@ -5,9 +5,9 @@ import {
   readByTitle,
   removeFromList,
   updateNote,
-} from "./notes";
-import { getRequest } from "./utils";
-import pool from "./db";
+} from "../services/notes";
+import { getRequest } from "../utils/utils";
+import pool from "../config/db";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import type { JwtPayload } from "jsonwebtoken";
