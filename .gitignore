@@ -2,3 +2,6 @@
 .env
 notes.json
 users.json
+.dockerignore
+Dockerfile
+docker-compose.yml
