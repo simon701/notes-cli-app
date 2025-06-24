@@ -18,10 +18,12 @@
     "chalk": "^5.4.1",
     "dotenv": "^16.5.0",
     "jsonwebtoken": "^9.0.2",
+    "pg": "^8.16.2",
     "yargs": "^17.7.2"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
+    "@types/pg": "^8.15.4",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
   }
