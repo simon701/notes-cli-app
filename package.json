@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "ts-node controllers/app.ts",
+    "init": "ts-node scripts/init.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -23,6 +24,8 @@
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
+    "@types/cors": "^2.8.19",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/pg": "^8.15.4",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
