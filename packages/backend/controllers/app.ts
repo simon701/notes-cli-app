@@ -16,6 +16,22 @@ import { findUserByUsername } from "../services/user";
 
 dotenv.config();
 
+interface LoginPayload {
+  username: string;
+  password: string; 
+}
+
+interface NotePayload {
+  title: string;
+  body: string;
+  color?: string;
+}
+
+interface NoteUpdatePayload {
+  title?: string;
+  body?: string;
+}
+
 declare module "http" {
   interface IncomingMessage {
     user?: { id: number; username: string };
@@ -83,7 +99,7 @@ const server = http.createServer(async (req, res) => {
     case "POST":
       if (url === "/login") {
         try {
-          const { username, password } = await getRequest(req);
+          const { username, password } = await getRequest<LoginPayload>(req); 
           const user = await findUserByUsername(username);
 
           if (user) {
@@ -106,7 +122,7 @@ const server = http.createServer(async (req, res) => {
             }
 
             const SECRET = process.env.JWT_SECRET!;
-            const token = jwt.sign({ username }, SECRET, { expiresIn: "15m" });
+            const token = jwt.sign({ id: user.id, username }, SECRET, { expiresIn: "1h" });
 
             res.writeHead(200, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ success: true, token }));
@@ -141,13 +157,17 @@ const server = http.createServer(async (req, res) => {
 
       if (notesRoute) {
         try {
-          const { title, body, color } = await getRequest(req);
+          const { title, body, color } = await getRequest<NotePayload>(req);
           await addNote(title, body, req.user!.id, color);
           res.writeHead(201, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ message: "Note added" }));
         } catch (err) {
           res.writeHead(400, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ message: "Invalid JSON body" }));
+          res.end(
+            JSON.stringify({
+              message: (err as Error).message || "Invalid JSON body",
+            })
+          );
         }
         return;
       }
@@ -159,7 +179,7 @@ const server = http.createServer(async (req, res) => {
         if (parts.length === 3) {
           const oldTitle = decodeURIComponent(parts[2]);
           try {
-            const { title: newTitle, body: newBody } = await getRequest(req);
+            const { title: newTitle, body: newBody } = await getRequest<NoteUpdatePayload>(req);
             await updateNote(oldTitle, req.user!.id, newTitle, newBody);
             res.writeHead(200, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ message: "Note updated successfully" }));
