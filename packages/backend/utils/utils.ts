@@ -1,5 +1,6 @@
 import http from "http";
 
+//eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const getRequest = (req: http.IncomingMessage): Promise<any> => {
   return new Promise((resolve, reject) => {
     let body = "";

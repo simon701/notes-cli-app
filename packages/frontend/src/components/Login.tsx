@@ -30,7 +30,7 @@ function Login({ onLogin }: { onLogin: () => void }) {
         setError("Invalid username or password");
       }
     } catch (err) {
-      setError("Something went wrong. Please try again.");
+      setError((err as Error).message || "Something went wrong. Please try again.");
     }
   };
 

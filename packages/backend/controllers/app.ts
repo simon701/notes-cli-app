@@ -147,7 +147,11 @@ const server = http.createServer(async (req, res) => {
           res.end(JSON.stringify({ message: "Note added" }));
         } catch (err) {
           res.writeHead(400, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ message: "Invalid JSON body" }));
+          res.end(
+            JSON.stringify({
+              message: (err as Error).message || "Invalid JSON body",
+            })
+          );
         }
         return;
       }
