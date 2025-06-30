@@ -1,3 +1,5 @@
+name: CI implementation
+
 on:
   pull_request:
     branches: [main]
