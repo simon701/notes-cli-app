@@ -1,9 +1,10 @@
 import "./index.css";
 import ListNotes from "./components/ListNotes";
 import Login from "./components/Login";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { jwtDecode } from "jwt-decode";
 import { logoutUser, isTokenExpired } from "./services/noteService";
+import { useAuth } from "./context/useAuth";
 
 interface JwtPayload {
   username: string;
@@ -12,8 +13,7 @@ interface JwtPayload {
 }
 
 function App() {
-  const [authenticated, setAuthenticated] = useState(false);
-  const username = localStorage.getItem("username");
+  const { authenticated, setAuthenticated, username } = useAuth();
 
   const autoLogout = (token: string) => {
     const decoded = jwtDecode<JwtPayload>(token);
@@ -51,15 +51,7 @@ function App() {
   };
 
   if (!authenticated) {
-    return (
-      <Login
-        onLogin={() => {
-          setAuthenticated(true);
-          const token = localStorage.getItem("token");
-          if (token) autoLogout(token);
-        }}
-      />
-    );
+    return <Login />;
   }
 
   return (
