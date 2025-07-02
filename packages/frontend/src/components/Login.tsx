@@ -1,9 +1,12 @@
 import { useState } from "react";
+import { useAuth } from "../context/useAuth";
+import { jwtDecode } from "jwt-decode";
 
-function Login({ onLogin }: { onLogin: () => void }) {
+function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const { setAuthenticated } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,12 +28,23 @@ function Login({ onLogin }: { onLogin: () => void }) {
       if (data.success) {
         localStorage.setItem("token", data.token);
         localStorage.setItem("username", username);
-        onLogin();
+        setAuthenticated(true);
+        const decoded = jwtDecode<{ exp: number }>(data.token);
+        const expiryTime = decoded.exp * 1000;
+        const timeLeft = expiryTime - Date.now();
+        setTimeout(() => {
+          localStorage.removeItem("token");
+          localStorage.removeItem("username");
+          setAuthenticated(false);
+          alert("Session expired. You have been logged out.");
+        }, timeLeft);
       } else {
         setError("Invalid username or password");
       }
     } catch (err) {
-      setError((err as Error).message || "Something went wrong. Please try again.");
+      setError(
+        (err as Error).message || "Something went wrong. Please try again."
+      );
     }
   };
 
