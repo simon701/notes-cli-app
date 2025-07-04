@@ -28,6 +28,7 @@ services:
       PG_DATABASE: ${PG_DATABASE}
       PG_PASSWORD: ${PG_PASSWORD}
       PG_PORT: ${PG_PORT}
+      DATABASE_URL: postgres://${PG_USER}:${PG_PASSWORD}@${PG_HOST}:${PG_PORT}/${PG_DATABASE}
     ports:
       - "5000:5000"
     networks:
