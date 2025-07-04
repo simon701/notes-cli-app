@@ -27,7 +27,7 @@ export const addNote = async (
   }
 
   await pool.query(
-    "INSERT INTO notes (title, body, color, user_id) VALUES ($1, $2, $3, $4)",
+    "INSERT INTO notes (title, body, color, user_id) VALUES ($1, $2, $3, $4) RETURNING *",
     [capitalizeFirst(title.trim()), body, color, userId]
   );
 };
