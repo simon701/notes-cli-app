@@ -1,21 +1,25 @@
 import jwt from "jsonwebtoken";
 import type { JwtPayload } from "jsonwebtoken";
-import http from "http";
 import dotenv from "dotenv";
+import { Request, Response, NextFunction } from "express";
 import { findUserByUsername } from "../services/user";
 
 dotenv.config();
 
-declare module "http" {
-  interface IncomingMessage {
+declare module "express-serve-static-core" {
+  interface Request {
     user?: { id: number; username: string };
   }
 }
 
-export const verifyToken = async (req: http.IncomingMessage): Promise<void> => {
+export const verifyToken = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   const authHeader = req.headers["authorization"];
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    throw new Error("Authorization denied.");
+    return res.status(401).json({ message: "Authorization denied." });
   }
 
   const token = authHeader.split(" ")[1];
@@ -32,9 +36,12 @@ export const verifyToken = async (req: http.IncomingMessage): Promise<void> => {
     if (!user) throw new Error("User not found");
 
     req.user = { id: user.id, username: user.username };
+    next();
   } catch (err) {
-    throw new Error(
-      "Unauthorized: " + (err instanceof Error ? err.message : "Invalid token")
-    );
+    res.status(401).json({
+      message:
+        "Unauthorized: " +
+        (err instanceof Error ? err.message : "Invalid token"),
+    });
   }
 };
