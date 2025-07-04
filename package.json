@@ -23,9 +23,11 @@
     "eslint": "^9.30.0",
     "eslint-plugin-react": "^7.37.5",
     "globals": "^16.2.0",
+    "prisma": "^6.11.1",
     "typescript-eslint": "^8.35.0"
   },
   "dependencies": {
+    "@prisma/client": "^6.11.1",
     "cors": "^2.8.5",
     "express": "^5.1.0"
   }
