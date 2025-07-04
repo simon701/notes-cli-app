@@ -23,7 +23,7 @@ router.get("/:title?", (async (req: Request, res: Response) => {
   } catch (err) {
     res.status(500).json({ message: (err as Error).message || "Server error" });
   }
-}) as RequestHandler);;
+}) as RequestHandler);
 
 router.post("/", async (req: Request, res: Response) => {
   try {
