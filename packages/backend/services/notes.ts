@@ -1,10 +1,12 @@
-import pool from "../config/db";
+import { PrismaClient } from "@prisma/client";
 
 export interface Note {
   title: string;
   body: string;
-  color?: string;
+  color?: string | null;
 }
+
+const prisma = new PrismaClient();
 
 function capitalizeFirst(str: string): string {
   if (!str) return "";
@@ -17,38 +19,47 @@ export const addNote = async (
   userId: number,
   color?: string
 ): Promise<void> => {
-  const existing = await pool.query(
-    "SELECT * FROM notes WHERE LOWER(title)=LOWER($1) AND user_id=$2",
-    [title, userId]
-  );
+  const existing = await prisma.note.findFirst({
+    where: {
+      title: { equals: title, mode: "insensitive" },
+      userId,
+    },
+  });
 
-  if (existing.rows.length > 0) {
+  if (existing) {
     throw new Error("Note with this title already exists.");
   }
 
-  await pool.query(
-    "INSERT INTO notes (title, body, color, user_id) VALUES ($1, $2, $3, $4) RETURNING *",
-    [capitalizeFirst(title.trim()), body, color, userId]
-  );
+  await prisma.note.create({
+    data: {
+      title: capitalizeFirst(title.trim()),
+      body,
+      color,
+      userId,
+    },
+  });
 };
 
 export const listNotes = async (userId: number): Promise<Note[]> => {
-  const res = await pool.query(
-    "SELECT title, body, color FROM notes WHERE user_id=$1",
-    [userId]
-  );
-  return res.rows;
+  const res = await prisma.note.findMany({
+    where: { userId },
+    select: { title: true, body: true, color: true },
+  });
+  return res;
 };
 
 export const readByTitle = async (
   title: string,
   userId: number
 ): Promise<Note | undefined> => {
-  const res = await pool.query(
-    "SELECT title, body, color FROM notes WHERE LOWER(title)=LOWER($1) AND user_id=$2",
-    [title, userId]
-  );
-  return res.rows[0];
+  const res = await prisma.note.findFirst({
+    where: {
+      title: { equals: title, mode: "insensitive" },
+      userId,
+    },
+    select: { title: true, body: true, color: true },
+  });
+  return res || undefined;
 };
 
 export const updateNote = async (
@@ -57,48 +68,52 @@ export const updateNote = async (
   newTitle?: string,
   newBody?: string
 ): Promise<void> => {
-  const existing = await pool.query(
-    "SELECT * FROM notes WHERE LOWER(title)=LOWER($1) AND user_id=$2",
-    [title, userId]
-  );
+  const existing = await prisma.note.findFirst({
+    where: {
+      title: { equals: title, mode: "insensitive" },
+      userId,
+    },
+  });
 
-  if (existing.rows.length === 0) {
+  if (!existing) {
     throw new Error("Note not found.");
   }
 
-  const note = existing.rows[0];
-
   if (newTitle) {
-    const duplicate = await pool.query(
-      "SELECT * FROM notes WHERE LOWER(title)=LOWER($1) AND user_id=$2 AND id<>$3",
-      [newTitle, userId, note.id]
-    );
+    const duplicate = await prisma.note.findFirst({
+      where: {
+        title: { equals: newTitle, mode: "insensitive" },
+        userId,
+        NOT: { id: existing.id },
+      },
+    });
 
-    if (duplicate.rows.length > 0) {
+    if (duplicate) {
       throw new Error("Another note with this title already exists.");
     }
   }
 
-  const updatedTitle = newTitle ? capitalizeFirst(newTitle.trim()) : note.title;
-  const updatedBody = newBody ? capitalizeFirst(newBody.trim()) : note.body;
-
-  await pool.query("UPDATE notes SET title=$1, body=$2 WHERE id=$3", [
-    updatedTitle,
-    updatedBody,
-    note.id,
-  ]);
+  await prisma.note.update({
+    where: { id: existing.id },
+    data: {
+      title: newTitle ? capitalizeFirst(newTitle.trim()) : existing.title,
+      body: newBody ? capitalizeFirst(newBody.trim()) : existing.body,
+    },
+  });
 };
 
 export const removeFromList = async (
   title: string,
   userId: number
 ): Promise<void> => {
-  const res = await pool.query(
-    "DELETE FROM notes WHERE LOWER(title)=LOWER($1) AND user_id=$2 RETURNING *",
-    [title, userId]
-  );
+  const res = await prisma.note.deleteMany({
+    where: {
+      title: { equals: title, mode: "insensitive" },
+      userId,
+    },
+  });
 
-  if (res.rowCount === 0) {
+  if (res.count === 0) {
     throw new Error("Note not found.");
   }
 };
